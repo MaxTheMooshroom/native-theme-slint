@@ -6,12 +6,30 @@
 
     links = "systemtheme"
 
+[patch.crates-io]
+    pastey = { git = "https://github.com/MaxTheMooshroom/pastey" }
+
 [features]
+    default = ["native"]
     nightly = []
+
+    # native-theme's icon sets and SVG rasteriser, passed through.
+    material-icons = ["native-theme/material-icons"]
+    lucide-icons = ["native-theme/lucide-icons"]
+    system-icons = ["native-theme/system-icons"]
+    svg-rasterize = ["native-theme/svg-rasterize"]
+    system-fonts = ["native-theme/system-fonts"]  # enables `system_font_family` and `font`
+
+    # The OS readers, off by default as in native-theme: without one,
+    # `from_system()` is the platform preset on Linux and an error on macOS and
+    # Windows. native-theme's finer `kde`, `portal`, `macos` and `windows` pick one.
+    native = ["native-theme/native"]
+    watch = ["native-theme/watch"] # enables `theme_changes`
 
 [dependencies]
     anyhow = "1.0.104"
-    native-theme = { version = "0.7.2", features = [ "native" ] }
+    native-theme = "0.7.2"
+    pastey = "0.2.3"
     slint = { version = "1.19.0", default-features = false, features = [ "std", "compat-1-2" ] }
 
 [build-dependencies]

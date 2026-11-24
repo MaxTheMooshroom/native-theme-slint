@@ -5,15 +5,17 @@ import {
     ResolvedDefaultsBorder, ResolvedIconSizes, ResolvedDefaults,
     ResolvedTextScaleEntry, ResolvedTextScale, FontSpec,
     WidgetBorderSpec, AccessibilityPreferences, IconSet,
+    ThemePreset,
     
     WindowTheme, ButtonTheme, InputTheme, TextAreaTheme,
     CheckboxTheme, MenuTheme, TooltipTheme, ScrollbarTheme,
     SliderTheme, ProgressBarTheme, TabTheme, SidebarTheme,
     LayoutTheme,
-    
+
     ResolvedTheme,
     SystemThemeInner,
     SystemTheme,
+    Library,
 } from "system-theme.slint";
 
 export {
@@ -21,15 +23,17 @@ export {
     ResolvedDefaultsBorder, ResolvedIconSizes, ResolvedDefaults,
     ResolvedTextScaleEntry, ResolvedTextScale, FontSpec,
     WidgetBorderSpec, AccessibilityPreferences, IconSet,
+    ThemePreset,
     
     WindowTheme, ButtonTheme, InputTheme, TextAreaTheme,
     CheckboxTheme, MenuTheme, TooltipTheme, ScrollbarTheme,
     SliderTheme, ProgressBarTheme, TabTheme, SidebarTheme,
     LayoutTheme,
-    
+
     ResolvedTheme,
     SystemThemeInner,
     SystemTheme,
+    Library,
 } from "system-theme.slint";
 
 export component ThemedWidget {
@@ -41,7 +45,7 @@ export component TitleBar inherits ThemedWidget {}
 export component SystemWindow inherits Window {
     no-frame: true;
 
-    in-out property <string> theme-preset <=> system-theme.preset;
+    in-out property <ThemePreset> theme-preset <=> system-theme.preset;
 
     pure function get() -> ResolvedTheme {
         return system-theme.mode == ColorMode.dark ? system-theme.dark : system-theme.light;

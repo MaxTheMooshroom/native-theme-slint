@@ -32,11 +32,34 @@ export enum FontStyle {
 }
 
 export struct ResolvedFontSpec {
+    /// Font family name.
     family: string,
+    /// Font size in logical pixels. A size stated in points is converted at
+    /// the resolution context's
+    /// [`font_dpi`](crate::resolve::ResolutionContext::font_dpi) and rounded to a whole number where `defaults.font_whole_pixels` is true.
     size: length,
-    defined_size: physical-length,
+    /// The size as its source stated it, before conversion.
+    ///
+    /// [`size`](Self::size) is always logical pixels, which is what a toolkit
+    /// lays out with. This is the unit and number the preset or the platform
+    /// reader actually gave: the OS readers and the platform presets other
+    /// than Material state points, and Material and the community
+    /// colour-scheme presets state pixels.
+    ///
+    /// Anything that shows a size to a person should show **this**. The two
+    /// cannot be told apart after conversion -- a 14px preset and a 10.5pt
+    /// one at 96 DPI both resolve to 14.0 -- so a display that divides
+    /// `size` by the DPI would label the first as points, which no source
+    /// ever said.
+    ///
+    /// `None` only where the source stated no size at all and validation
+    /// recorded the omission.
+    defined-size: length,
+    /// CSS font weight (100–900).
     weight: int,
+    /// Font style (normal, italic, oblique).
     style: FontStyle = FontStyle.normal,
+    /// Font color.
     color: color,
 }
 
@@ -131,7 +154,7 @@ export struct ResolvedDefaults {
     /// Text color on danger-colored backgrounds.
     danger-text-color: color,
     /// Warning color.
-    warning-colour: color,
+    warning-color: color,
     /// Text color on warning-colored backgrounds.
     warning-text-color: color,
     /// Success/confirmation color.
@@ -785,6 +808,38 @@ export struct AccessibilityPreferences {
     reduce_transparency: bool = false,
 }
 
+export enum ThemePreset {
+    none,
+
+    // community themes
+    catppuccin-latte,
+    catppuccin-frappe,
+    catppuccin-macchiato,
+    catppuccin-mocha,
+    nord,
+    dracula,
+    gruvbox,
+    solarized,
+    tokyo-night,
+    one-dark,
+
+    // platform-specific themes
+    /// linux-kde
+    kde-breeze,
+    /// linux
+    adwaita,
+    /// windows
+    windows-11,
+    /// macos
+    macos-monterey,
+    /// macos
+    macos-tahoe,
+    /// any
+    material-3,
+    /// ios or macos
+    ios-13,
+}
+
 export struct SystemThemeInner {
     /// Theme name: the reader's (the KDE colour scheme's, such as
     /// `"BreezeDark"`, or `"GNOME"`, `"macOS"`, `"Windows"`), or the preset's
@@ -806,7 +861,7 @@ export struct SystemThemeInner {
     /// Resolved dark variant (always populated).
     dark: ResolvedTheme,
     /// The platform preset used (e.g., "kde-breeze", "adwaita", "macos-tahoe").
-    preset: string,
+    preset: ThemePreset,
     /// How the running OS version relates to the generation of
     /// [`preset`](Self::preset): `None` where the platform has no generation
     /// table (Linux, whose readers read the installed style) or no reader ran.
@@ -843,17 +898,20 @@ export struct SystemThemeInner {
     accessibility: AccessibilityPreferences,
 }
 
+export global Library {
+    pure callback load(preset: ThemePreset) -> SystemThemeInner;
+}
+
 export component SystemTheme {
-    pure callback load(preset: string) -> SystemThemeInner;
-    private property <SystemThemeInner> theme: load(preset);
+    private property <SystemThemeInner> theme: Library.load(preset);
 
     /// The platform preset used (e.g., "kde-breeze", "adwaita", "macos-tahoe").
     ///
     /// Setting this will update all other values in accordance with the selected
     /// preset. Special values are an empty string `""` and `"none"`, which both
     /// represent no specified preset.
-    in-out property <string> preset: "none";
-    changed preset => { theme = load(preset); };
+    in-out property <ThemePreset> preset: ThemePreset.none;
+    changed preset => { self.theme = Library.load(preset); };
 
     /// Theme name: the reader's (the KDE colour scheme's, such as
     /// `"BreezeDark"`, or `"GNOME"`, `"macOS"`, `"Windows"`), or the preset's
@@ -910,14 +968,14 @@ export component SystemTheme {
     out property <AccessibilityPreferences> accessibility: theme.accessibility;
 
     changed theme => {
-        name = theme.name;
-        mode = theme.mode;
-        light = theme.light;
-        dark = theme.dark;
-        version-match = theme.version-match;
-        icon-set = theme.icon-set;
-        icon-theme = theme.icon-theme;
-        layout = theme.layout;
-        accessibility = theme.accessibility;
+        self.name = theme.name;
+        self.mode = theme.mode;
+        self.light = theme.light;
+        self.dark = theme.dark;
+        self.version-match = theme.version-match;
+        self.icon-set = theme.icon-set;
+        self.icon-theme = theme.icon-theme;
+        self.layout = theme.layout;
+        self.accessibility = theme.accessibility;
     };
 }
