@@ -1,0 +1,19 @@
+[package]
+    name = "native-theme-slint"
+    version = "0.0.0"
+    edition = "2024"
+    # rust-version = "1.85"
+
+    links = "systemtheme"
+
+[features]
+    nightly = []
+
+[dependencies]
+    anyhow = "1.0.104"
+    native-theme = { version = "0.7.2", features = [ "native" ] }
+    slint = { version = "1.19.0", default-features = false, features = [ "std", "compat-1-2" ] }
+
+[build-dependencies]
+    anyhow = "1.0.104"
+    slint-build = { version = "1.19.0", features = ["experimental-module-builds"] }

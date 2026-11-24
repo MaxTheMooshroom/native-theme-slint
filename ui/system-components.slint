@@ -1,0 +1,56 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+
+import {
+    ColorMode, VersionMatch, FontStyle, ResolvedFontSpec,
+    ResolvedDefaultsBorder, ResolvedIconSizes, ResolvedDefaults,
+    ResolvedTextScaleEntry, ResolvedTextScale, FontSpec,
+    WidgetBorderSpec, AccessibilityPreferences, IconSet,
+    
+    WindowTheme, ButtonTheme, InputTheme, TextAreaTheme,
+    CheckboxTheme, MenuTheme, TooltipTheme, ScrollbarTheme,
+    SliderTheme, ProgressBarTheme, TabTheme, SidebarTheme,
+    LayoutTheme,
+    
+    ResolvedTheme,
+    SystemThemeInner,
+    SystemTheme,
+} from "system-theme.slint";
+
+export {
+    ColorMode, VersionMatch, FontStyle, ResolvedFontSpec,
+    ResolvedDefaultsBorder, ResolvedIconSizes, ResolvedDefaults,
+    ResolvedTextScaleEntry, ResolvedTextScale, FontSpec,
+    WidgetBorderSpec, AccessibilityPreferences, IconSet,
+    
+    WindowTheme, ButtonTheme, InputTheme, TextAreaTheme,
+    CheckboxTheme, MenuTheme, TooltipTheme, ScrollbarTheme,
+    SliderTheme, ProgressBarTheme, TabTheme, SidebarTheme,
+    LayoutTheme,
+    
+    ResolvedTheme,
+    SystemThemeInner,
+    SystemTheme,
+} from "system-theme.slint";
+
+export component ThemedWidget {
+    in property <ResolvedTheme> theme;
+}
+
+export component TitleBar inherits ThemedWidget {}
+
+export component SystemWindow inherits Window {
+    no-frame: true;
+
+    in-out property <string> theme-preset <=> system-theme.preset;
+
+    pure function get() -> ResolvedTheme {
+        return system-theme.mode == ColorMode.dark ? system-theme.dark : system-theme.light;
+    }
+
+    system-theme := SystemTheme {}
+
+    VerticalBox {
+        TitleBar { theme: get(); }
+        
+    }
+}

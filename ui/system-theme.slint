@@ -1,0 +1,923 @@
+
+export enum ColorMode {
+    /// Light appearance.
+    light,
+    /// Dark appearance.
+    dark,
+}
+
+export enum VersionMatch {
+    none,
+    /// The running version lies between the first version of the preset's
+    /// generation and the newest version its values were verified on.
+    exact,
+    /// The running OS is newer than any version the preset was verified on:
+    /// the preset may carry an older look than the OS draws (macOS 27 under
+    /// `macos-tahoe`).
+    preset-older,
+    /// The running OS predates the preset's generation: the preset carries a
+    /// newer look than the OS draws (Windows 10 under `windows-11`).
+    preset-newer,
+}
+
+export enum FontStyle {
+    none,
+
+    /// Normal upright text.
+    normal,
+    /// Italic text (true italic glyph).
+    italic,
+    /// Oblique text (slanted upright glyph).
+    oblique,
+}
+
+export struct ResolvedFontSpec {
+    family: string,
+    size: length,
+    defined_size: physical-length,
+    weight: int,
+    style: FontStyle = FontStyle.normal,
+    color: color,
+}
+
+export struct ResolvedDefaultsBorder {
+    /// Border color.
+    color: color,
+    /// Corner radius in logical pixels.
+    corner-radius: length,
+    /// Large corner radius in logical pixels.
+    corner-radius-lg: length,
+    /// Border stroke width in logical pixels.
+    line-width: length,
+    /// The platform's line opacity, 0.0-1.0: the share of the text colour
+    /// already folded into every stated border colour. No connector
+    /// multiplies any colour by it (see [`DefaultsBorderSpec::opacity`]).
+    opacity: float,
+    /// The platform's line opacity, 0.0-1.0: the share of the text colour
+    /// already folded into every stated border colour. No connector
+    /// multiplies any colour by it (see [`DefaultsBorderSpec::opacity`]).
+    shadow-enabled: bool,
+}
+
+/// Fully resolved per-context icon sizes where every context is guaranteed populated.
+export struct ResolvedIconSizes {
+    /// Icon size for toolbar buttons.
+    toolbar: length,
+    /// Small icon size for inline use.
+    small: length,
+    /// Large icon size for menus/lists.
+    large: length,
+    /// Icon size for dialog buttons.
+    dialog: length,
+    /// Icon size for panel headers.
+    panel: length,
+}
+
+/// Fully resolved global theme defaults: every field is populated but
+/// `font_whole_pixels` and `focus_ring_keyboard_only`, soft options whose
+/// `None` is a meaning (the theme does not say).
+///
+/// Mirrors [`native_theme::model::ThemeDefaults`] with concrete types for
+/// every other field. Produced by the resolution/validation pipeline.
+export struct ResolvedDefaults {
+    /// Primary UI font.
+    font: ResolvedFontSpec,
+    /// Line height multiplier.
+    line-height: length,
+    /// Whether the font sizes were rounded to whole logical pixels as Qt
+    /// rounds (`Some(true)`); an application that re-derives a size from
+    /// `defined_size` at its own DPI rounds it so too. `None` where the theme
+    /// does not say. See
+    /// [`ThemeDefaults::font_whole_pixels`](native_theme::model::ThemeDefaults::font_whole_pixels).
+    font-whole-pixels: bool,
+    /// Monospace font for code/terminal content.
+    mono-font: ResolvedFontSpec,
+
+    // base colours
+    /// Main window/surface background color.
+    background-color: color,
+    /// Default text color.
+    text-color: color,
+    /// Accent/brand color for interactive elements.
+    accent-color: color,
+    /// Text color used on accent-colored backgrounds.
+    accent-text-color: color,
+    /// Elevated surface color.
+    surface-color: color,
+    /// Secondary/subdued text color.
+    muted-color: color,
+    /// Drop shadow color.
+    shadow-color: color,
+    /// Hyperlink text color.
+    link-color: color,
+    /// Selection highlight background.
+    selection-background: color,
+    /// Text color over selection highlight.
+    selection-text-color: color,
+    /// Selection background when window is unfocused.
+    selection-inactive-background: color,
+    /// Text color over `selection_inactive_background`.
+    selection-inactive-text-color: color,
+    /// Text selection background (inline text highlight).
+    text-selection-background: color,
+    /// Text selection color (inline text highlight).
+    text-selection-color: color,
+    /// Text color for disabled controls.
+    disabled-text-color: color,
+
+    // status colours
+    /// Danger/error color.
+    danger-color: color,
+    /// Text color on danger-colored backgrounds.
+    danger-text-color: color,
+    /// Warning color.
+    warning-colour: color,
+    /// Text color on warning-colored backgrounds.
+    warning-text-color: color,
+    /// Success/confirmation color.
+    success-color: color,
+    /// Text color on success-colored backgrounds.
+    success-text-color: color,
+    /// Informational color.
+    info-color: color,
+    /// Text color on info-colored backgrounds.
+    info-text-color: color,
+
+    // global geometry
+    /// Border sub-struct (color, corner_radius, line_width, etc.).
+    border: ResolvedDefaultsBorder,
+    /// Opacity for disabled controls, applied to the whole widget together
+    /// with the disabled colours; 1.0 where the platform dims by colour
+    /// alone. See [`ThemeDefaults::disabled_opacity`](native_theme::model::ThemeDefaults::disabled_opacity).
+    disabled-opacity: float,
+
+    // ---- Focus ring ----
+    /// Focus indicator outline color.
+    focus-ring-color: color,
+    /// Focus indicator outline width.
+    focus-ring-width: length,
+    /// Gap between element edge and focus indicator.
+    focus-ring-offset: length,
+    /// Whether the platform shows its focus ring only for a keyboard focus;
+    /// `None` where the theme does not say. See
+    /// [`ThemeDefaults::focus_ring_keyboard_only`](native_theme::model::ThemeDefaults::focus_ring_keyboard_only).
+    focus-ring-keyboard-only: bool,
+
+    // ---- Icon sizes ----
+    /// Per-context icon sizes.
+    icon-sizes: ResolvedIconSizes,
+}
+
+/// A single resolved text scale entry with guaranteed size, weight, and line height.
+///
+/// No `Default` derive: Constructed from a populated
+/// `TextScaleEntry` during resolution; the missing-field sentinel is
+/// written inline in
+/// `crate::resolve::validate_helpers::require_text_scale_entry` (private).
+export struct ResolvedTextScaleEntry {
+    /// Font size in logical pixels. A size stated in points is converted at
+    /// the resolution context's
+    /// [`font_dpi`](crate::resolve::ResolutionContext::font_dpi) and rounded to a whole number where `defaults.font_whole_pixels` is true.
+    size: length,
+    /// CSS font weight (100-900).
+    weight: int,
+    /// Line height in logical pixels. Computed as `defaults.line_height * size`
+    /// from the size before that rounding when not explicitly set. An explicit value stated in points is converted
+    /// at the same `font_dpi` as the size.
+    line-height: length,
+}
+
+/// A fully resolved text scale with all four typographic roles populated.
+export struct ResolvedTextScale {
+    /// Caption / small label text.
+    caption: ResolvedTextScaleEntry,
+    /// Section heading text.
+    section-heading: ResolvedTextScaleEntry,
+    /// Dialog title text.
+    dialog-title: ResolvedTextScaleEntry,
+    /// Large display / hero text.
+    display: ResolvedTextScaleEntry,
+}
+
+/// Font specification: family name, size, weight, style, and color.
+///
+/// All fields are optional to support partial overlays -- a FontSpec with
+/// only `size` set will only override the size when merged.
+///
+/// **Default behavior asymmetry:** During validation, `family`, `size`,
+/// `weight`, and `color` are required (missing values produce a validation
+/// error). `style` silently defaults to [`FontStyle::Normal`] because
+/// Normal is the universally-safe default -- no theme ever intends to
+/// leave style undefined in a way that would produce incorrect rendering.
+export struct FontSpec {
+    /// Font family name (e.g., "Inter", "Noto Sans").
+    family: string,
+    /// Font size with explicit unit (points or pixels).
+    ///
+    /// In TOML, set as `size_pt` (typographic points) or `size_px` (logical
+    /// pixels). Converted to `f32` logical pixels during validation via
+    /// `FontSize::to_logical_px(dpi)` and rounded to a whole number where `defaults.font_whole_pixels` is true.
+    size: length,
+    /// CSS font weight (100–900).
+    weight: int,
+    /// Font style (none, normal, italic, oblique).
+    /// `none` means "not specified"
+    style: FontStyle,
+    /// Font color.
+    color: color,
+}
+
+/// Widget-level border specification: color, geometry, and padding.
+///
+/// Used on per-widget structs for border properties specific to individual
+/// widgets. Unlike [`DefaultsBorderSpec`], includes the four padding sides
+/// (widget-level layout) but omits `corner_radius_lg` and `opacity`
+/// (defaults-only geometry).
+///
+/// Padding fields are widget-only because different widgets need different
+/// internal padding even when sharing the same border geometry from defaults.
+///
+/// **Padding is per side.** A platform states padding side by side, and some
+/// sides differ (Windows' input is 10 left / 6 right, docs/platform-facts.md
+/// §2.4), so the model stores the four sides and nothing else. `None` means
+/// the platform states no value for that side; `Some(0.0)` means it states
+/// zero.
+///
+/// **TOML.** The sides are `padding_top_px`, `padding_right_px`,
+/// `padding_bottom_px` and `padding_left_px`. `padding_horizontal_px` and
+/// `padding_vertical_px` are parse-time shorthand that set both sides of
+/// their axis. A table that states an axis key together with one of that
+/// axis's sides is a parse error naming both keys. Serialisation writes
+/// sides only.
+///
+/// All fields are optional to support partial overlays, and they merge per
+/// field, the overlay winning, so a reader's left side over a preset's
+/// shorthand replaces the left side alone.
+export struct WidgetBorderSpec {
+    /// Border color.
+    color: color,
+    /// Corner radius in logical pixels.
+    corner-radius: length,
+    /// Border stroke width in logical pixels.
+    line-width: length,
+    /// Whether the bordered element has a drop shadow.
+    shadow-enabled: bool,
+    /// Padding inside the border above the content, in logical pixels.
+    padding-top: length,
+    /// Padding inside the border right of the content, in logical pixels.
+    padding-right: length,
+    /// Padding inside the border below the content, in logical pixels.
+    padding-bottom: length,
+    /// Padding inside the border left of the content, in logical pixels.
+    padding-left: length,
+}
+
+/// Window chrome: background, title bar colors, inactive states, geometry.
+export struct WindowTheme {
+    /// Main window background fill.
+    background-color: color,
+    /// Active title bar background fill.
+    title-bar-background: color,
+    /// Title bar background when the window is unfocused.
+    inactive-title-bar-background: color,
+    /// Title bar text color when the window is unfocused.
+    inactive-title-bar-text-color: color,
+    /// Title bar font specification.
+    title-bar-font: FontSpec,
+    /// Window border specification.
+    border: WidgetBorderSpec,
+}
+
+/// Push button: colors, sizing, spacing, geometry.
+export struct ButtonTheme {
+    /// Button background fill at rest.
+    background-color: color,
+    /// Primary / accent button background fill.
+    primary-background: color,
+    /// Primary / accent button text/icon color.
+    primary-text-color: color,
+    /// Minimum button width in logical pixels.
+    min-width: length,
+    /// Minimum button width in logical pixels.
+    min-height: length,
+    /// Space between icon and label.
+    icon-text-gap: length,
+    /// Opacity multiplier when the button is disabled (0.0-1.0), applied to
+    /// the whole button on top of its disabled colours (see
+    /// [`ThemeDefaults::disabled_opacity`](crate::model::ThemeDefaults::disabled_opacity)).
+    disabled-opacity: float,
+    /// Button background on hover.
+    hover-background: color,
+    /// Button text color on hover.
+    hover-text-color: color,
+    /// Button text color when pressed/active.
+    active-text-color: color,
+    /// Button text color when disabled.
+    disabled-text-color: color,
+    /// Button background when pressed/active.
+    active-background: color,
+    /// Button background when disabled; `None`, the enabled background.
+    disabled-background: color,
+    /// Background of a toggle button that is on (checked): Breeze's
+    /// `Button` mixed an eighth towards `ButtonText`, WinUI's accent fill,
+    /// libadwaita's pressed fill, Material's `secondary`. `None` where the
+    /// platform states none (AppKit); a connector then shows the pressed
+    /// pair, `active_background` and `active_text_color`
+    /// (docs/platform-facts.md §2.3).
+    checked-background: color,
+    /// Label color of a toggle button that is on; `None`, as for
+    /// `checked_background`, the pressed pair's (docs/platform-facts.md §2.3).
+    checked-text-color: color,
+    /// Border colour of a hovered button, which a pressed button keeps (it is under
+    /// the pointer). `None` where the theme states none; a connector then draws
+    /// `border.color` (docs/platform-facts.md §2.3).
+    hover-border-color: color,
+    /// Border colour of a button with the keyboard focus. `None` where the theme
+    /// states none; a connector then draws the hover border, else `border.color`, where
+    /// it shows a focused button by its border (docs/platform-facts.md §2.3).
+    focus-border-color: color,
+    /// Fill of a dialog's default button, the one Enter activates, where the
+    /// platform gives it a look of its own: Breeze's `Button` mixed a fifth
+    /// towards `Highlight`. `None` where the default button is the primary
+    /// one (macOS, Windows): a connector then draws `primary_background` and
+    /// `primary_text_color` in every state. Where it is stated, the default
+    /// button is this fill, lettered in `default_button_text_color` (else
+    /// `font.color`) and framed in `default_button_border_color` (else
+    /// `border.color`): the fill decides (docs/platform-facts.md §2.3).
+    /// Breeze tints its default button only in an active window; the
+    /// connectors draw this look whatever the window's state.
+    default-button-background: color,
+    /// Label colour of a dialog's default button, read only where
+    /// `default_button_background` is stated; `None` there is `font.color`,
+    /// as Breeze letters it (docs/platform-facts.md §2.3).
+    default-button-text-color: color,
+    /// Border colour of a dialog's default button, read only where
+    /// `default_button_background` is stated; `None` there is `border.color`
+    /// (docs/platform-facts.md §2.3).
+    default-button-border-color: color,
+    /// Button label font specification.
+    font: FontSpec,
+    /// Button border specification.
+    border: WidgetBorderSpec,
+}
+
+export struct InputTheme {
+    /// Input field background fill.
+    background-color: color,
+    /// Placeholder text color.
+    placeholder-color: color,
+    /// Text cursor (caret) color.
+    caret-color: color,
+    /// How long the caret is shown in each blink cycle, in milliseconds, 1 or
+    /// more. A blink is stated whole, with
+    /// [`caret_blink_off`](Self::caret_blink_off), or not at all; `None`
+    /// where the theme states none, and the toolkit's own blink applies
+    /// (docs/platform-facts.md §2.4).
+    caret-blink-on: int,
+    /// How long the caret is hidden in each blink cycle, in milliseconds; 0
+    /// means the caret does not blink, whatever
+    /// [`caret_blink_on`](Self::caret_blink_on) is. `None` where the theme
+    /// states no blink (docs/platform-facts.md §2.4).
+    caret-blink-off: int,
+    /// How long after the last input the caret stops blinking, shown, in
+    /// milliseconds, 1 or more; stated only beside `caret_blink_off`. `None` where the
+    /// platform's caret never stops (KDE, Material, iOS) or no source gives
+    /// its time-out (Windows, macOS) (docs/platform-facts.md §2.4).
+    caret-blink-timeout: int,
+    /// Text selection highlight color.
+    selection-background: color,
+    /// Text color inside the selection highlight.
+    selection-text-color: color,
+    /// Minimum field height in logical pixels.
+    min-height: length,
+    /// Opacity multiplier when disabled (0.0-1.0), applied to the whole
+    /// widget on top of its disabled colours (see
+    /// [`ThemeDefaults::disabled_opacity`](crate::model::ThemeDefaults::disabled_opacity)).
+    disabled-opacity: float,
+    /// Input text color when disabled.
+    disabled-text-color: color,
+    /// Border color when the input is hovered.
+    hover-border-color: color,
+    /// Border color when the input has focus.
+    focus-border-color: color,
+    /// Input background when disabled; `None`, the enabled background.
+    disabled-background: color,
+    /// Input text font specification.
+    font: FontSpec,
+    /// Input border specification.
+    border: WidgetBorderSpec,
+}
+
+/// Multi-line text field: the padding in which it differs from the
+/// single-line field. Everything else a text area shows -- its fill, text,
+/// placeholder, caret, selection, states and font -- is [`InputTheme`]'s.
+export struct TextAreaTheme {
+    /// Text area border specification. Its padding sides are the multi-line
+    /// field's own, `None` where the platform states none
+    /// (docs/platform-facts.md §2.29); its colour, corner radius, line width
+    /// and shadow inherit `input.border`'s: the platforms frame both fields
+    /// alike.
+    border: WidgetBorderSpec,
+}
+
+/// Checkbox and radio button theme: colors, indicator, label font, border, and interactive states.
+export struct CheckboxTheme {
+    /// Checkbox background color.
+    background-color: color,
+    /// Indicator background when checked.
+    checked-background: color,
+    /// Indicator (check mark / radio dot) color.
+    indicator-color: color,
+    /// Side length of the checkbox indicator (square), or diameter of the
+    /// radio indicator (circle), in logical pixels: the whole indicator, not
+    /// the mark drawn inside it (docs/platform-facts.md:984).
+    indicator-width: length,
+    /// Diameter of the radio indicator (circle) in logical pixels, where the
+    /// platform sizes it apart from the checkbox's square: Material's radio is
+    /// 20 across, its checkbox 18. `None` where the platform sizes both alike,
+    /// and the radio is `indicator_width` across (docs/platform-facts.md §2.5).
+    radio-indicator-width: length,
+    /// Diameter of the filled dot a selected radio button draws at the centre
+    /// of its indicator, in logical pixels. `None` where the theme states no
+    /// dot size (ios-13 and the community presets); a connector then draws
+    /// its toolkit's own dot (docs/platform-facts.md §2.5).
+    radio-dot-diameter: length,
+    /// Stroke width of the check mark a checked checkbox draws, in logical
+    /// pixels. `None` where the platform states none: WinUI's mark is a font
+    /// glyph and AppKit publishes none (docs/platform-facts.md §2.5).
+    check-mark-stroke-width: length,
+    /// Space between indicator and label.
+    label-gap: length,
+    /// Opacity multiplier when disabled (0.0-1.0), applied to the whole
+    /// widget on top of its disabled colours (see
+    /// [`ThemeDefaults::disabled_opacity`](crate::model::ThemeDefaults::disabled_opacity)).
+    disabled-opacity: float,
+    /// Checkbox label text color when disabled.
+    disabled-text-color: color,
+    /// Checkbox background on hover.
+    hover-background: color,
+    /// Border colour of a check box's or a radio button's indicator under the
+    /// pointer, checked or not. `None` where the theme states none; a connector
+    /// then keeps the border at rest (docs/platform-facts.md §2.5).
+    hover-border-color: color,
+    /// Checkbox background when disabled; `None`, the enabled box of its
+    /// state (checked or unchecked).
+    disabled-background: color,
+    /// Indicator background when unchecked.
+    unchecked-background: color,
+    /// Border color when unchecked.
+    unchecked-border-color: color,
+    /// Checkbox label font specification.
+    font: FontSpec,
+    /// Checkbox border specification.
+    border: WidgetBorderSpec,
+}
+
+/// Popup and context menu appearance, and the menu bar's titles.
+///
+/// A menu bar is filled with `toolbar.background_color`, the fill of the one
+/// tools area Breeze paints (docs/platform-facts.md §2.6, §2.13).
+export struct MenuTheme {
+    /// Menu panel background fill.
+    background-color: color,
+    /// Separator line color between menu items.
+    separator-color: color,
+    /// Height of an item row, drawn exactly at a text scale of 1. `None`
+    /// where the platform states no fixed row height: KDE's rows size to
+    /// their content with a floor, `min_row_height`. Where both are stated,
+    /// this one is drawn and `min_row_height` is not applied
+    /// (docs/platform-facts.md §2.6).
+    row-height: length,
+    /// Least height of a one-line item row in logical pixels; content taller
+    /// than it grows the row. Breeze's row is 29 wherever the text line and
+    /// the icon are 20 px or less, and the text + 9 above that, where the
+    /// model's row grows as the text + `border`'s vertical padding: one pixel
+    /// short there. Not applied where `row_height` is stated. `None`: the row
+    /// is its content's height (docs/platform-facts.md §2.6).
+    min-row-height: length,
+    /// Space between a menu item's icon and its label.
+    icon-text-gap: length,
+    /// Menu item icon size in logical pixels.
+    icon-size: length,
+    /// Menu item background on hover. It may be translucent, a layer over the
+    /// menu's `background_color` (kde-breeze states `#3daee94d`, windows-11
+    /// `#00000009` light and `#ffffff0f` dark): lay it over that fill, with
+    /// [`composite_over`](crate::color::composite_over) where the toolkit
+    /// replaces the fill rather than painting the highlight over it.
+    hover-background: color,
+    /// Menu item text color on hover.
+    hover-text-color: color,
+    /// Disabled menu item text color.
+    disabled-text-color: color,
+    /// Outline of a hovered item's highlight, drawn at
+    /// `defaults.border.line_width` inside the highlight, over the item's
+    /// padding, so nothing moves, and rounded by `border.corner_radius`:
+    /// Breeze's focus colour mixed 15 % towards `WindowText`. A pressed item
+    /// draws none where `active_background` is stated. `None`: no outline
+    /// (docs/platform-facts.md §2.6).
+    hover-border-color: color,
+    /// Fill of a menu-bar title under the pointer, rounded by
+    /// `border.corner_radius`: Breeze's opaque hover colour. `None`: the title
+    /// keeps the connector's own look (docs/platform-facts.md §2.6).
+    bar-hover-background: color,
+    /// Fill of a menu-bar title whose menu is open: Breeze's focus colour.
+    /// `None`: `bar_hover_background`; with both `None`, the connector's own
+    /// look (docs/platform-facts.md §2.6).
+    bar-open-background: color,
+    /// Text colour of a menu-bar title under the pointer or open: Breeze's
+    /// `HighlightedText`. `None`: the title keeps its text colour
+    /// (docs/platform-facts.md §2.6).
+    bar-hover-text-color: color,
+    /// Inset of a menu-bar title's text from its left and right edge, in
+    /// logical pixels: Breeze's `MenuBarItem_MarginWidth` 10; titles so padded
+    /// touch. `None`: the connector's own title padding
+    /// (docs/platform-facts.md §2.6).
+    bar-padding-horizontal: length,
+    /// Inset of a menu-bar title's text from its top and bottom edge, in
+    /// logical pixels: Breeze's `MenuBarItem_MarginHeight` 6. `None`: the
+    /// connector's own title padding (docs/platform-facts.md §2.6).
+    bar-padding-vertical: length,
+    /// Fill of an item while the mouse button is held on it: Breeze's opaque
+    /// focus colour. Where it is stated, a pressed item draws no
+    /// `hover_border_color` outline (Breeze's outline is the fill's own
+    /// colour). `None`: a pressed item keeps the hover look, outline included
+    /// (docs/platform-facts.md §2.6).
+    active-background: color,
+    /// Text colour of a pressed item: Breeze's `HighlightedText`. `None`:
+    /// `hover_text_color` (docs/platform-facts.md §2.6).
+    active-text-color: color,
+    /// Inset of the items from the left and right of the menu panel's frame
+    /// line, in logical pixels; the frame is `popover.border`'s. Breeze's
+    /// `PM_MenuHMargin` 4 counts from the panel's outer edge, its 1 px line
+    /// included, so kde-breeze states 3. Rows so inset touch. `None`: the
+    /// items are inset by `popover.border`'s padding (docs/platform-facts.md
+    /// §2.6).
+    panel-padding-horizontal: length,
+    /// Inset of the items from the top and bottom of the menu panel's frame
+    /// line, in logical pixels; the frame is `popover.border`'s. Breeze's
+    /// `PM_MenuVMargin` 4 counts from the panel's outer edge, its 1 px line
+    /// included, so kde-breeze states 3. Rows so inset touch. `None`: the
+    /// items are inset by `popover.border`'s padding (docs/platform-facts.md
+    /// §2.6).
+    panel-padding-vertical: length,
+    /// Menu item font specification.
+    font: FontSpec,
+    /// Menu border specification: its padding insets an item's contents from
+    /// the edges of the item's highlight. Its corner radius is the platform's
+    /// menu radius, which KDE gives a hovered item's highlight and Material the
+    /// menu's container (the iced connector rounds a drop-down's panel with
+    /// it, the egui connector a menu's items). It has no colour of its own:
+    /// the menu's popup frame is the popover's, `popover.border`
+    /// (docs/platform-facts.md §2.6, §2.16). No bundled preset states this border's colour or width; unstated,
+    /// they resolve to transparent and 0.
+    border: WidgetBorderSpec,
+}
+
+/// Tooltip popup appearance.
+export struct TooltipTheme {
+    /// Tooltip background fill.
+    background-color: color,
+    /// Maximum tooltip width before wrapping.
+    max-width: length,
+    /// Delay in milliseconds between the pointer coming to rest on an element
+    /// and its tooltip showing. `None` where the platform states none: AppKit
+    /// documents no delay (docs/platform-facts.md §2.7).
+    show-delay: int,
+    /// Tooltip font specification.
+    font: FontSpec,
+    /// Tooltip border specification.
+    border: WidgetBorderSpec,
+}
+
+/// Scrollbar colors and geometry.
+export struct ScrollbarTheme {
+    /// Scrollbar track (gutter) color. A transparent track means the platform
+    /// draws no groove: the view under the bar shows beside the handle
+    /// (kde-breeze, macos-monterey, macos-tahoe and windows-11 state one).
+    track-color: color,
+    /// Scrollbar thumb color.
+    thumb-color: color,
+    /// Thumb color on hover.
+    thumb-hover-color: color,
+    /// Scrollbar groove width in logical pixels.
+    groove-width: length,
+    /// Minimum thumb length in logical pixels.
+    min-thumb-length: length,
+    /// Width of the thumb rail within the scrollbar.
+    thumb-width: length,
+    /// Whether the scrollbar overlays content instead of taking layout space.
+    overlay-mode: bool,
+    /// Thumb color when pressed/dragging.
+    thumb-active-color: color,
+}
+
+/// Slider control colors and geometry.
+export struct SliderTheme {
+    /// Filled portion of the slider track.
+    fill-color: color,
+    /// Unfilled track color.
+    track-color: color,
+    /// Thumb (handle) color.
+    thumb-color: color,
+    /// Track height in logical pixels.
+    track-height: length,
+    /// Thumb diameter in logical pixels.
+    thumb-diameter: length,
+    /// Tick mark length in logical pixels.
+    tick-mark-length: length,
+    /// Opacity multiplier when disabled (0.0-1.0), applied to the whole
+    /// widget on top of its disabled colours (see
+    /// [`ThemeDefaults::disabled_opacity`](crate::model::ThemeDefaults::disabled_opacity)).
+    disabled-opacity: float,
+    /// Thumb color on hover.
+    thumb-hover-color: color,
+    /// Filled track color when disabled; `None`, the enabled colour (as for
+    /// the two below).
+    disabled-fill-color: color,
+    /// Unfilled track color when disabled.
+    disabled-track-color: color,
+    /// Thumb color when disabled.
+    disabled-thumb-color: color,
+    /// The handle's outline at rest, `thumb_border_line_width` wide inside
+    /// the handle: Breeze's `Button` mixed `frameContrast` towards
+    /// `ButtonText`. `None` with the width stated: no line at rest, the
+    /// handle keeping its outer size (docs/platform-facts.md §2.9).
+    thumb-border-color: color,
+    /// Width of the handle's outline in logical pixels; 0 draws no outline in
+    /// any state, a connector's own included. `None`: the connector draws the
+    /// handle as it does without this field (its own outline, if any)
+    /// (docs/platform-facts.md §2.9).
+    thumb-border-line-width: length,
+    /// The handle's outline with the pointer on it and while it is dragged,
+    /// over the focus outline: Breeze's hover colour. `None`:
+    /// `thumb_border_color` (docs/platform-facts.md §2.9).
+    thumb-hover-border-color: color,
+    /// The handle's outline while the slider has the focus, from a click or a
+    /// key: Breeze's focus colour. `None`: `thumb_border_color`
+    /// (docs/platform-facts.md §2.9).
+    thumb-focus-border-color: color,
+}
+
+/// Progress bar colors and geometry.
+export struct ProgressBarTheme {
+    /// Progress bar colors and geometry.
+    fill-color: color,
+    /// Background track color.
+    track-color: color,
+    /// Bar height in logical pixels.
+    track-height: length,
+    /// Minimum bar width in logical pixels.
+    min-width: length,
+    /// Progress bar border specification.
+    border: WidgetBorderSpec,
+}
+
+/// Tab bar colors and sizing.
+export struct TabTheme {
+    /// Inactive tab background.
+    background-color: color,
+    /// Active (selected) tab background.
+    active-background: color,
+    /// Active (selected) tab text color.
+    active-text-color: color,
+    /// Tab bar strip background.
+    bar-background: color,
+}
+
+export struct SidebarTheme {
+    
+}
+
+/// A fully resolved theme: every field the model requires is populated, and
+/// a field the model treats as optional (an `Option` here too) is `None`
+/// where the theme states none.
+///
+/// Produced by `validate()` after `resolve()`. Consumed by toolkit connectors.
+/// Mirrors [`crate::model::ThemeMode`] with concrete types for the required
+/// fields of all 26 per-widget structs plus defaults and text scale.
+export struct ResolvedTheme {
+    /// Global defaults.
+    defaults: ResolvedDefaults,
+    /// Per-role text scale.
+    text-scale: ResolvedTextScale,
+
+    // ---- Per-widget resolved structs ----
+    /// Window chrome.
+    window: WindowTheme,
+    /// Push button.
+    button: ButtonTheme,
+    /// Text input.
+    input: InputTheme,
+    /// Multi-line text field's padding; the rest is `input`'s.
+    text-area: TextAreaTheme,
+    /// Checkbox / radio button.
+    checkbox: CheckboxTheme,
+    /// Popup / context menu.
+    menu: MenuTheme,
+    /// Tooltip.
+    tooltip: TooltipTheme,
+    /// Scrollbar.
+    scrollbar: ScrollbarTheme,
+    /// Slider.
+    slider: SliderTheme,
+    /// Progress bar.
+    progress-bar: ProgressBarTheme,
+    /// Tab bar.
+    tab: TabTheme,
+    /// Sidebar panel.
+}
+
+export enum IconSet {
+    /// Apple SF Symbols (macOS, iOS).
+    sf-symbols,
+    /// Microsoft Segoe Fluent Icons (Windows): the font's glyphs (Segoe MDL2
+    /// Assets on Windows 10, same code points) and the shell's stock icons
+    /// (`SHGetStockIconInfo`, `LoadIconW`).
+    segoe-fluent,
+    /// freedesktop Icon Naming Specification (Linux).
+    freedesktop,
+    /// Google Material Symbols.
+    material,
+    /// Lucide Icons (fork of Feather).
+    lucide,
+}
+
+/// Layout spacing constants shared between light and dark variants.
+///
+/// Unlike other widget themes, LayoutTheme lives on [`crate::Theme`] (top-level)
+/// rather than [`crate::ThemeMode`] because spacing is variant-independent.
+// LayoutTheme keeps `skip_inventory` so it does NOT register
+// in the per-variant WidgetFieldInfo registry (it is top-level, not per-variant),
+// but also derives ThemeFields so lint_toml can look up its fields in the
+// non-widget FieldInfo registry under the key "LayoutTheme".
+export struct LayoutTheme {
+    /// Space between adjacent widgets in logical pixels.
+    widget-gap: length,
+    /// Padding inside containers in logical pixels.
+    container-margin: length,
+    /// Padding inside the main window in logical pixels.
+    window-margin: length,
+    /// Space between major content sections in logical pixels.
+    section-gap: length,
+}
+
+export struct AccessibilityPreferences {
+    /// Text scaling factor (1.0 = no scaling): the factor of the user's
+    /// preference for larger text that the toolkit has not applied. Multiply
+    /// font sizes by it ([`scaled`](Self::scaled)) to honour the preference.
+    /// Where the toolkit's own scale factor carries the preference, it is
+    /// 1.0: on a GNOME or Budgie X11 session, where winit and gpui take their
+    /// scale factor from the `Xft.dpi` gnome-settings-daemon writes as
+    /// 96 × `text-scaling-factor` × the window scale (gnome-settings-daemon
+    /// 51.0 `plugins/xsettings/gsd-xsettings-manager.c:666-668`, `:742`,
+    /// `:797-798`; winit 0.30.13 `src/platform_impl/linux/x11/util/randr.rs:41-53`,
+    /// `:145-146`; gpui-pre-linux 0.3.12 `src/linux/x11/client.rs:2674-2681`).
+    /// They do so only while `WINIT_X11_SCALE_FACTOR` and
+    /// `GPUI_X11_SCALE_FACTOR` are unset (`randr.rs:112-154`,
+    /// `client.rs:2623-2669`); with an override the application owns the
+    /// scale, and the factor is applied nowhere.
+    text_scaling_factor: float = 1.0,
+    /// Whether the user has requested reduced motion.
+    reduce_motion: bool = false,
+    /// Whether a high-contrast mode is active.
+    high_contrast: bool = false,
+    /// Whether the user has requested reduced transparency.
+    reduce_transparency: bool = false,
+}
+
+export struct SystemThemeInner {
+    /// Theme name: the reader's (the KDE colour scheme's, such as
+    /// `"BreezeDark"`, or `"GNOME"`, `"macOS"`, `"Windows"`), or the preset's
+    /// where no reader ran.
+    //
+    // # Ownership type
+    //
+    // `Cow<'static, str>`, not `Arc<str>` (which `ResolvedFontSpec::family`
+    // uses, as 26 widgets share font families): each resolved theme carries
+    // one `name`, so sharing gains nothing, and a bundled preset's name is a
+    // `&'static str` literal that `Cow::Borrowed` holds with no allocation and
+    // no refcount. The same holds for `SystemTheme::icon_theme`, `Theme::name`
+    // and `ThemeDefaults::icon_theme` (`docs/archive/v0.5.7_gaps.md` §G9).
+    name: string,
+    /// The OS color mode preference (light or dark).
+    mode: ColorMode,
+    /// Resolved light variant (always populated).
+    light: ResolvedTheme,
+    /// Resolved dark variant (always populated).
+    dark: ResolvedTheme,
+    /// The platform preset used (e.g., "kde-breeze", "adwaita", "macos-tahoe").
+    preset: string,
+    /// How the running OS version relates to the generation of
+    /// [`preset`](Self::preset): `None` where the platform has no generation
+    /// table (Linux, whose readers read the installed style) or no reader ran.
+    /// On macOS 27 under `macos-tahoe`, which no preset of its own covers yet,
+    /// it is `Some(VersionMatch::PresetOlder)`; on Windows 10 under
+    /// `windows-11`, `Some(VersionMatch::PresetNewer)`. Early macOS 26 betas
+    /// reported version 16 to a binary built against the macOS 15 SDK; a
+    /// major version 16 gets `macos-monterey` with
+    /// `Some(VersionMatch::PresetOlder)` (sources in the macOS generation
+    /// table, `pipeline.rs`).
+    version-match: VersionMatch,
+    /// Which icon loading mechanism to use for this theme.
+    icon-set: IconSet,
+    /// The name of the visual icon theme (e.g. `"breeze"`, `"Adwaita"`):
+    /// the active variant's, else the theme's, else the detected system
+    /// icon theme. `None` where the theme states none and detection fails;
+    /// [`system_icon_theme()`](crate::detect::system_icon_theme) gives the
+    /// reason.
+    //
+    // # Ownership type
+    //
+    // `Cow<'static, str>` is used here per the same principled deviation
+    // documented on `SystemTheme::name` — see `docs/archive/v0.5.7_gaps.md`
+    // §G9. Each resolved theme carries a single icon-theme name (KDE has
+    // exactly two across light/dark variants — `"breeze"` / `"breeze-dark"`;
+    // other platforms have one), so the `Arc<str>` dedup benefit does not apply.
+    icon-theme: string,
+    /// Each variant's icon theme, resolved by the same three tiers as
+    /// [`icon_theme`](Self::icon_theme), kept by variant rather than relative
+    /// to [`mode`](Self::mode), a public field a caller may change. Read
+    /// through [`icon_theme_for`](Self::icon_theme_for).
+    layout: LayoutTheme,
+    /// OS-detected accessibility preferences (shared across variants).
+    accessibility: AccessibilityPreferences,
+}
+
+export component SystemTheme {
+    pure callback load(preset: string) -> SystemThemeInner;
+    private property <SystemThemeInner> theme: load(preset);
+
+    /// The platform preset used (e.g., "kde-breeze", "adwaita", "macos-tahoe").
+    ///
+    /// Setting this will update all other values in accordance with the selected
+    /// preset. Special values are an empty string `""` and `"none"`, which both
+    /// represent no specified preset.
+    in-out property <string> preset: "none";
+    changed preset => { theme = load(preset); };
+
+    /// Theme name: the reader's (the KDE colour scheme's, such as
+    /// `"BreezeDark"`, or `"GNOME"`, `"macOS"`, `"Windows"`), or the preset's
+    /// where no reader ran.
+    //
+    // # Ownership type
+    //
+    // `Cow<'static, str>`, not `Arc<str>` (which `ResolvedFontSpec::family`
+    // uses, as 26 widgets share font families): each resolved theme carries
+    // one `name`, so sharing gains nothing, and a bundled preset's name is a
+    // `&'static str` literal that `Cow::Borrowed` holds with no allocation and
+    // no refcount. The same holds for `SystemTheme::icon_theme`, `Theme::name`
+    // and `ThemeDefaults::icon_theme` (`docs/archive/v0.5.7_gaps.md` §G9).
+    out property <string> name: theme.name;
+    /// The OS color mode preference (light or dark).
+    out property <ColorMode> mode: theme.mode;
+    /// Resolved light variant (always populated).
+    out property <ResolvedTheme> light: theme.light;
+    /// Resolved dark variant (always populated).
+    out property <ResolvedTheme> dark: theme.dark;
+    /// How the running OS version relates to the generation of
+    /// [`preset`](Self::preset): `None` where the platform has no generation
+    /// table (Linux, whose readers read the installed style) or no reader ran.
+    /// On macOS 27 under `macos-tahoe`, which no preset of its own covers yet,
+    /// it is `Some(VersionMatch::PresetOlder)`; on Windows 10 under
+    /// `windows-11`, `Some(VersionMatch::PresetNewer)`. Early macOS 26 betas
+    /// reported version 16 to a binary built against the macOS 15 SDK; a
+    /// major version 16 gets `macos-monterey` with
+    /// `Some(VersionMatch::PresetOlder)` (sources in the macOS generation
+    /// table, `pipeline.rs`).
+    out property <VersionMatch> version-match: theme.version-match;
+    /// Which icon loading mechanism to use for this theme.
+    out property <IconSet> icon-set: theme.icon-set;
+    /// The name of the visual icon theme (e.g. `"breeze"`, `"Adwaita"`):
+    /// the active variant's, else the theme's, else the detected system
+    /// icon theme. `None` where the theme states none and detection fails;
+    /// [`system_icon_theme()`](crate::detect::system_icon_theme) gives the
+    /// reason.
+    //
+    // # Ownership type
+    //
+    // `Cow<'static, str>` is used here per the same principled deviation
+    // documented on `SystemTheme::name` — see `docs/archive/v0.5.7_gaps.md`
+    // §G9. Each resolved theme carries a single icon-theme name (KDE has
+    // exactly two across light/dark variants — `"breeze"` / `"breeze-dark"`;
+    // other platforms have one), so the `Arc<str>` dedup benefit does not apply.
+    out property <string> icon-theme: theme.icon-theme;
+    /// Layout spacing shared by both variants: the platform reader's values
+    /// merged field-wise over the preset's, the same precedence the pipeline
+    /// uses for colours. `None` in a field means neither the platform nor the
+    /// preset specifies it (platform-facts §2.20); nothing is invented.
+    out property <LayoutTheme> layout: theme.layout;
+    /// OS-detected accessibility preferences (shared across variants).
+    out property <AccessibilityPreferences> accessibility: theme.accessibility;
+
+    changed theme => {
+        name = theme.name;
+        mode = theme.mode;
+        light = theme.light;
+        dark = theme.dark;
+        version-match = theme.version-match;
+        icon-set = theme.icon-set;
+        icon-theme = theme.icon-theme;
+        layout = theme.layout;
+        accessibility = theme.accessibility;
+    };
+}
