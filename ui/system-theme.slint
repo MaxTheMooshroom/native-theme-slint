@@ -76,9 +76,7 @@ export struct ResolvedDefaultsBorder {
     /// already folded into every stated border colour. No connector
     /// multiplies any colour by it (see [`DefaultsBorderSpec::opacity`]).
     opacity: float,
-    /// The platform's line opacity, 0.0-1.0: the share of the text colour
-    /// already folded into every stated border colour. No connector
-    /// multiplies any colour by it (see [`DefaultsBorderSpec::opacity`]).
+    /// Whether the bordered element has a drop shadow.
     shadow-enabled: bool,
 }
 
@@ -222,34 +220,6 @@ export struct ResolvedTextScale {
     display: ResolvedTextScaleEntry,
 }
 
-/// Font specification: family name, size, weight, style, and color.
-///
-/// All fields are optional to support partial overlays -- a FontSpec with
-/// only `size` set will only override the size when merged.
-///
-/// **Default behavior asymmetry:** During validation, `family`, `size`,
-/// `weight`, and `color` are required (missing values produce a validation
-/// error). `style` silently defaults to [`FontStyle::Normal`] because
-/// Normal is the universally-safe default -- no theme ever intends to
-/// leave style undefined in a way that would produce incorrect rendering.
-export struct FontSpec {
-    /// Font family name (e.g., "Inter", "Noto Sans").
-    family: string,
-    /// Font size with explicit unit (points or pixels).
-    ///
-    /// In TOML, set as `size_pt` (typographic points) or `size_px` (logical
-    /// pixels). Converted to `f32` logical pixels during validation via
-    /// `FontSize::to_logical_px(dpi)` and rounded to a whole number where `defaults.font_whole_pixels` is true.
-    size: length,
-    /// CSS font weight (100–900).
-    weight: int,
-    /// Font style (none, normal, italic, oblique).
-    /// `none` means "not specified"
-    style: FontStyle,
-    /// Font color.
-    color: color,
-}
-
 /// Widget-level border specification: color, geometry, and padding.
 ///
 /// Used on per-widget structs for border properties specific to individual
@@ -306,7 +276,7 @@ export struct WindowTheme {
     /// Title bar text color when the window is unfocused.
     inactive-title-bar-text-color: color,
     /// Title bar font specification.
-    title-bar-font: FontSpec,
+    title-bar-font: ResolvedFontSpec,
     /// Window border specification.
     border: WidgetBorderSpec,
 }
@@ -379,7 +349,7 @@ export struct ButtonTheme {
     /// (docs/platform-facts.md §2.3).
     default-button-border-color: color,
     /// Button label font specification.
-    font: FontSpec,
+    font: ResolvedFontSpec,
     /// Button border specification.
     border: WidgetBorderSpec,
 }
@@ -426,7 +396,7 @@ export struct InputTheme {
     /// Input background when disabled; `None`, the enabled background.
     disabled-background: color,
     /// Input text font specification.
-    font: FontSpec,
+    font: ResolvedFontSpec,
     /// Input border specification.
     border: WidgetBorderSpec,
 }
@@ -491,7 +461,7 @@ export struct CheckboxTheme {
     /// Border color when unchecked.
     unchecked-border-color: color,
     /// Checkbox label font specification.
-    font: FontSpec,
+    font: ResolvedFontSpec,
     /// Checkbox border specification.
     border: WidgetBorderSpec,
 }
@@ -584,7 +554,7 @@ export struct MenuTheme {
     /// §2.6).
     panel-padding-vertical: length,
     /// Menu item font specification.
-    font: FontSpec,
+    font: ResolvedFontSpec,
     /// Menu border specification: its padding insets an item's contents from
     /// the edges of the item's highlight. Its corner radius is the platform's
     /// menu radius, which KDE gives a hovered item's highlight and Material the
@@ -607,7 +577,7 @@ export struct TooltipTheme {
     /// documents no delay (docs/platform-facts.md §2.7).
     show-delay: int,
     /// Tooltip font specification.
-    font: FontSpec,
+    font: ResolvedFontSpec,
     /// Tooltip border specification.
     border: WidgetBorderSpec,
 }
@@ -899,11 +869,11 @@ export struct SystemThemeInner {
 }
 
 export global Library {
-    pure callback load(preset: ThemePreset) -> SystemThemeInner;
+    pure callback get_system_theme(preset: ThemePreset) -> SystemThemeInner;
 }
 
 export component SystemTheme {
-    private property <SystemThemeInner> theme: Library.load(preset);
+    private property <SystemThemeInner> theme: Library.get_system_theme(self.preset);
 
     /// The platform preset used (e.g., "kde-breeze", "adwaita", "macos-tahoe").
     ///
@@ -911,7 +881,7 @@ export component SystemTheme {
     /// preset. Special values are an empty string `""` and `"none"`, which both
     /// represent no specified preset.
     in-out property <ThemePreset> preset: ThemePreset.none;
-    changed preset => { self.theme = Library.load(preset); };
+    changed preset => { self.theme = Library.get_system_theme(self.preset); };
 
     /// Theme name: the reader's (the KDE colour scheme's, such as
     /// `"BreezeDark"`, or `"GNOME"`, `"macOS"`, `"Windows"`), or the preset's
@@ -968,14 +938,14 @@ export component SystemTheme {
     out property <AccessibilityPreferences> accessibility: theme.accessibility;
 
     changed theme => {
-        self.name = theme.name;
-        self.mode = theme.mode;
-        self.light = theme.light;
-        self.dark = theme.dark;
-        self.version-match = theme.version-match;
-        self.icon-set = theme.icon-set;
-        self.icon-theme = theme.icon-theme;
-        self.layout = theme.layout;
-        self.accessibility = theme.accessibility;
+        self.name = self.theme.name;
+        self.mode = self.theme.mode;
+        self.light = self.theme.light;
+        self.dark = self.theme.dark;
+        self.version-match = self.theme.version-match;
+        self.icon-set = self.theme.icon-set;
+        self.icon-theme = self.theme.icon-theme;
+        self.layout = self.theme.layout;
+        self.accessibility = self.theme.accessibility;
     };
 }

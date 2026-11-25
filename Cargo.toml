@@ -13,6 +13,8 @@
     default = ["native"]
     nightly = []
 
+    nightly-checks = ["nightly"]
+
     # native-theme's icon sets and SVG rasteriser, passed through.
     material-icons = ["native-theme/material-icons"]
     lucide-icons = ["native-theme/lucide-icons"]
